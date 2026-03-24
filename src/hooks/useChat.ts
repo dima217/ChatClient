@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { api, Channel, Message } from '../lib/api'
+import { useAppDispatch } from '../store/hooks'
 import { chatWs } from '../lib/websocket'
 
 /** Map of message_id → set of user_ids who have read it */
 type ReadReceipts = Map<string, Set<string>>
 
 export function useChat(userId: string) {
+  const dispatch = useAppDispatch()
   const [channels, setChannels] = useState<Channel[]>([])
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -26,14 +28,21 @@ export function useChat(userId: string) {
   const refreshChannels = useCallback(async () => {
     setLoadingChannels(true)
     try {
-      const res = await api.listChannels()
-      setChannels(res.items.sort((a, b) => b.last_message_at - a.last_message_at))
+      const res = await dispatch(
+        api.endpoints.listChannels.initiate(undefined, {
+          subscribe: false,
+          forceRefetch: true,
+        })
+      ).unwrap()
+      setChannels(
+        res.items.sort((a, b) => b.last_message_at - a.last_message_at)
+      )
     } catch (e) {
       console.error('Failed to load channels:', e)
     } finally {
       setLoadingChannels(false)
     }
-  }, [])
+  }, [dispatch])
 
   useEffect(() => { refreshChannels() }, [refreshChannels])
 
@@ -41,35 +50,41 @@ export function useChat(userId: string) {
   useEffect(() => {
     if (!activeChannelId) { setMessages([]); setPinnedMessages([]); setReadReceipts(new Map()); setReplyTo(null); return }
     setLoadingMessages(true)
-    api.listMessages(activeChannelId).then(res => {
-      const msgs = res.items.reverse() // API returns newest-first, we want chronological
-      setMessages(msgs)
-      setPinnedMessages(msgs.filter(m => m.pinned_at))
-      // read_cursor: { userId → lastReadMessageId } → Map<messageId, Set<userId>>
-      const receipts = new Map<string, Set<string>>()
-      const cursor = res.read_cursor || {}
-      for (const [readerId, lastMsgId] of Object.entries(cursor)) {
-        const idx = msgs.findIndex(m => m.message_id === lastMsgId)
-        if (idx >= 0) {
-          for (let i = 0; i <= idx; i++) {
-            const mid = msgs[i].message_id
-            if (!receipts.has(mid)) receipts.set(mid, new Set())
-            receipts.get(mid)!.add(readerId)
+    dispatch(
+      api.endpoints.listMessages.initiate(activeChannelId, {
+        subscribe: false,
+        forceRefetch: true,
+      })
+    )
+      .unwrap()
+      .then((res) => {
+        const msgs = res.items.reverse()
+        setMessages(msgs)
+        setPinnedMessages(msgs.filter((m) => m.pinned_at))
+        const receipts = new Map<string, Set<string>>()
+        const cursor = res.read_cursor || {}
+        for (const [readerId, lastMsgId] of Object.entries(cursor)) {
+          const idx = msgs.findIndex((m) => m.message_id === lastMsgId)
+          if (idx >= 0) {
+            for (let i = 0; i <= idx; i++) {
+              const mid = msgs[i].message_id
+              if (!receipts.has(mid)) receipts.set(mid, new Set())
+              receipts.get(mid)!.add(readerId)
+            }
           }
         }
-      }
-      setMessages(prev => prev.map(m => {
-        if (receipts.has(m.message_id)) {
-          return { ...m, status: 'read' as const }
-        }
-        return m
-      }))
-      setReadReceipts(receipts)
-      console.log('[useChat] read_cursor от API:', res.read_cursor, '→ receipts:', receipts.size)
-      console.log('pinnedMessages', pinnedMessages)
-    }).catch(e => console.error('Failed to load messages:', e))
+        setMessages((prev) =>
+          prev.map((m) =>
+            receipts.has(m.message_id)
+              ? { ...m, status: 'read' as const }
+              : m
+          )
+        )
+        setReadReceipts(receipts)
+      })
+      .catch((e) => console.error('Failed to load messages:', e))
       .finally(() => setLoadingMessages(false))
-  }, [activeChannelId])
+  }, [activeChannelId, dispatch])
 
   // Filtered messages for search
   const filteredMessages = searchQuery

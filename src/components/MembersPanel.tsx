@@ -1,5 +1,9 @@
-import { useState, useEffect } from 'react'
-import { api } from '../lib/api'
+import { useState } from 'react'
+import {
+  useListMembersQuery,
+  useAddMembersMutation,
+  useRemoveMemberMutation,
+} from '../lib/api'
 import { USERS, getUserName } from '../lib/users'
 
 interface Props {
@@ -16,37 +20,27 @@ interface MemberInfo {
 }
 
 export function MembersPanel({ channelId, currentUserId, onClose, onRefresh }: Props) {
-  const [members, setMembers] = useState<MemberInfo[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data, isLoading: loading, refetch } = useListMembersQuery(channelId)
+  const [addMembers] = useAddMembersMutation()
+  const [removeMember] = useRemoveMemberMutation()
   const [showAddPicker, setShowAddPicker] = useState(false)
   const [message, setMessage] = useState('')
 
-  const fetchMembers = async () => {
-    try {
-      const res = await api.listMembers(channelId)
-      setMembers(res.items)
-    } catch (e) {
-      console.error('Failed to load members:', e)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { fetchMembers() }, [channelId])
+  const members: MemberInfo[] = data?.items ?? []
 
   const handleAdd = async (sub: string) => {
     setMessage('')
     try {
-      const res = await api.addMembers(channelId, [sub])
+      const res = await addMembers({ channelId, memberIds: [sub] }).unwrap()
       if (res.added.length > 0) {
         setMessage(`Added ${getUserName(sub)}`)
       } else {
         setMessage('Already a member')
       }
-      fetchMembers()
+      void refetch()
       onRefresh()
-    } catch (e: any) {
-      setMessage(e.message)
+    } catch (e: unknown) {
+      setMessage(e instanceof Error ? e.message : 'Failed to add member')
     }
     setShowAddPicker(false)
   }
@@ -54,11 +48,11 @@ export function MembersPanel({ channelId, currentUserId, onClose, onRefresh }: P
   const handleLeave = async () => {
     if (!confirm('Leave this channel?')) return
     try {
-      await api.removeMember(channelId)
+      await removeMember({ channelId }).unwrap()
       onRefresh()
       onClose()
-    } catch (e: any) {
-      setMessage(e.message)
+    } catch (e: unknown) {
+      setMessage(e instanceof Error ? e.message : 'Failed to leave')
     }
   }
 

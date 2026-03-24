@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react'
-import { api } from '../lib/api'
+import { useCreateChannelMutation } from '../lib/api'
+import { rtkErrorMessage } from '../lib/rtkError'
 import { USERS } from '../lib/users'
 
 interface Props {
@@ -9,11 +10,11 @@ interface Props {
 }
 
 export function CreateChannelDialog({ currentUserId, onClose, onCreated }: Props) {
+  const [createChannel, { isLoading: loading }] = useCreateChannelMutation()
   const [name, setName] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [type, setType] = useState<'group' | 'direct'>('group')
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
 
   const otherUsers = USERS.filter(u => u.sub !== currentUserId)
 
@@ -39,18 +40,15 @@ export function CreateChannelDialog({ currentUserId, onClose, onCreated }: Props
       return
     }
 
-    setLoading(true)
     try {
-      const res = await api.createChannel({
+      const res = await createChannel({
         name: type === 'group' ? name : '',
         type,
         member_ids: ids,
-      })
+      }).unwrap()
       onCreated(res.channel_id)
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
+    } catch (e: unknown) {
+      setError(rtkErrorMessage(e))
     }
   }
 
