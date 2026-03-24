@@ -56,10 +56,17 @@ export function MessageItem({ message, isOwn, showHeader, currentUserId, onReact
   return (
     <Pressable style={[s.wrap, showHeader && s.wrapHeader]} onPress={() => setShowActions(!showActions)}>
       {replyMsg && !isDeleted && (
-        <View style={s.replyCtx}>
+        <View style={s.replyRow}>
+          <View style={s.replyCornerWrap}>
+            <View style={s.replyCorner} />
+          </View>
           <Text style={s.replyCtxText} numberOfLines={1}>
             <Text style={s.replyCtxName}>{getUserName(replyMsg.sender_id)}</Text>
-            {' '}{replyMsg.deleted_at ? '(deleted)' : replyMsg.content.slice(0, 50)}{!replyMsg.deleted_at && replyMsg.content.length > 50 ? '…' : ''}
+            <Text style={s.replySep}> · </Text>
+            <Text style={s.replySnippet}>
+              {replyMsg.deleted_at ? '(deleted)' : replyMsg.content.slice(0, 60)}
+              {!replyMsg.deleted_at && replyMsg.content.length > 60 ? '…' : ''}
+            </Text>
           </Text>
         </View>
       )}
@@ -148,9 +155,33 @@ const s = StyleSheet.create({
   wrapHeader: { marginTop: 12 },
   systemWrap: { alignItems: 'center', marginVertical: 8 },
   systemText: { fontSize: 12, color: colors.text.gray500, backgroundColor: 'rgba(31,41,55,0.5)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 16 },
-  replyCtx: { paddingLeft: 32, marginBottom: 2 },
-  replyCtxText: { fontSize: 11, color: colors.text.gray500 },
-  replyCtxName: { fontWeight: '500', color: colors.text.gray400 },
+  replyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 32,
+    marginBottom: 4,
+    gap: 6,
+    minHeight: 16,
+  },
+  replyCornerWrap: {
+    width: 18,
+    height: 14,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    paddingRight: 2,
+  },
+  replyCorner: {
+    width: 14,
+    height: 12,
+    borderLeftWidth: 2,
+    borderTopWidth: 2,
+    borderColor: colors.text.gray600,
+    borderTopLeftRadius: 4,
+  },
+  replyCtxText: { flex: 1, fontSize: 11, color: colors.text.gray500, minWidth: 0 },
+  replyCtxName: { fontWeight: '600', color: colors.text.gray400 },
+  replySep: { color: colors.text.gray600 },
+  replySnippet: { color: colors.text.gray500 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
   avatar: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   avatarOwn: { backgroundColor: colors.accent.pink600 },

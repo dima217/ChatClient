@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
-  Platform,
 } from 'react-native'
 import { colors } from '../theme'
 
@@ -34,7 +33,7 @@ export function LoginScreen({ onLogin, onRegister, onClearError, error, loading 
   return (
     <KeyboardAvoidingView
       style={s.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
     >
       <View style={s.form}>
         <Text style={s.title}>LazyFans</Text>

@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
+import React, { useEffect, useState } from 'react'
+import { View, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Keyboard } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AuthUser } from '../lib/auth'
 import { useChat } from '../hooks/useChat'
@@ -25,6 +25,22 @@ export function ChatScreen({ user, onLogout }: Props) {
   const [showCreateChannel, setShowCreateChannel] = useState(false)
   const [showMembers, setShowMembers] = useState(false)
 
+  const [behaviour, setBehaviour] = useState<"padding" | undefined>("padding");
+
+  useEffect(() => {
+    const showListener = Keyboard.addListener("keyboardDidShow", () => {
+    setBehaviour("padding");
+  });
+  const hideListener = Keyboard.addListener("keyboardDidHide", () => {
+    setBehaviour(undefined);
+  });
+
+  return () => {
+    showListener.remove();
+    hideListener.remove();
+  };
+}, []);
+
   if (chat.activeChannel && chat.activeChannelId) {
     return (
       <View style={s.container}>
@@ -41,8 +57,10 @@ export function ChatScreen({ user, onLogout }: Props) {
           <View style={s.chatRow}>
             <KeyboardAvoidingView
               style={s.messagesWrap}
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-              keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 56 : 0}
+              behavior={behaviour}
+              contentContainerStyle={{ flex: 1 }}
+              enabled
+              keyboardVerticalOffset={insets.top + 56}
             >
               <MessageList
                 channelId={chat.activeChannelId}

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { View, Text, FlatList, StyleSheet } from 'react-native'
+import { View, Text, FlatList, StyleSheet, Keyboard, Platform } from 'react-native'
 import { Message } from '../lib/api'
 import { MessageItem } from './MessageItem'
 import { TypingIndicator } from './TypingIndicator'
@@ -39,6 +39,16 @@ export function MessageList({
 
   useEffect(() => {
     initialScrollForChannelRef.current = true
+  }, [channelId])
+
+  useEffect(() => {
+    const event = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
+    const sub = Keyboard.addListener(event, () => {
+      const scroll = () => flatRef.current?.scrollToEnd({ animated: true })
+      requestAnimationFrame(scroll)
+      setTimeout(scroll, 100)
+    })
+    return () => sub.remove()
   }, [channelId])
 
   const grouped = messages.reduce<{ msg: Message; showHeader: boolean }[]>((acc, msg, i) => {
