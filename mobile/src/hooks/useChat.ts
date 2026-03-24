@@ -47,6 +47,7 @@ export function useChat(userId: string) {
   }, [channels]);
 
   useEffect(() => {
+    lastReadSentRef.current = "";
     if (!activeChannelId) {
       setMessages([]);
       setPinnedMessages([]);
@@ -74,6 +75,13 @@ export function useChat(userId: string) {
           }
         }
         setReadReceipts(receipts);
+        setMessages((prev) =>
+          prev.map((m) =>
+            receipts.has(m.message_id)
+              ? { ...m, status: "read" as const }
+              : m
+          )
+        );
       })
       .catch((e) => console.error("Failed to load messages:", e))
       .finally(() => setLoadingMessages(false));
@@ -228,22 +236,30 @@ export function useChat(userId: string) {
             if (idx >= 0) {
               for (let i = 0; i <= idx; i++) {
                 const mid = msgs[i].message_id;
-                const readers = next.get(mid) || new Set();
+                const existing = next.get(mid);
+                const readers = existing ? new Set(existing) : new Set<string>();
                 readers.add(data.user_id!);
                 next.set(mid, readers);
               }
+            } else {
+              const existing = next.get(messageId);
+              const readers = existing ? new Set(existing) : new Set<string>();
+              readers.add(data.user_id!);
+              next.set(messageId, readers);
             }
             return next;
           });
-          setMessages((prev) =>
-            prev.map((m) =>
+          setMessages((prev) => {
+            const idx = prev.findIndex((m) => m.message_id === messageId);
+            if (idx < 0) return prev;
+            return prev.map((m, i) =>
               m.sender_id === userId &&
-              m.message_id <= messageId &&
+              i <= idx &&
               m.status !== "read"
                 ? { ...m, status: "read" as const }
                 : m
-            )
-          );
+            );
+          });
         }
       ),
 

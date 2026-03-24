@@ -97,6 +97,7 @@ export function MessageList({
       <FlatList
         ref={flatRef}
         data={grouped}
+        extraData={readReceipts}
         keyExtractor={item => item.msg.message_id}
         renderItem={({ item: { msg, showHeader } }) => (
           <MessageItem

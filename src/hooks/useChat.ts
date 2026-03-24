@@ -19,6 +19,8 @@ export function useChat(userId: string) {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastReadSentRef = useRef<string>('')
+  const messagesRef = useRef<Message[]>([])
+  messagesRef.current = messages
 
   // Load channels
   const refreshChannels = useCallback(async () => {
@@ -155,20 +157,35 @@ export function useChat(userId: string) {
       chatWs.on('chat.read', (data: any) => {
         if (data.user_id === userId) return
         const messageId = data.message_id as string
-        // Update read receipts
         setReadReceipts(prev => {
           const next = new Map(prev)
-          const readers = next.get(messageId) || new Set()
-          readers.add(data.user_id)
-          next.set(messageId, readers)
+          const msgs = messagesRef.current
+          const idx = msgs.findIndex(m => m.message_id === messageId)
+          if (idx >= 0) {
+            for (let i = 0; i <= idx; i++) {
+              const mid = msgs[i].message_id
+              const existing = next.get(mid)
+              const readers = existing ? new Set(existing) : new Set<string>()
+              readers.add(data.user_id)
+              next.set(mid, readers)
+            }
+          } else {
+            const existing = next.get(messageId)
+            const readers = existing ? new Set(existing) : new Set<string>()
+            readers.add(data.user_id)
+            next.set(messageId, readers)
+          }
           return next
         })
-        // Mark own messages as read
-        setMessages(prev => prev.map(m =>
-          m.sender_id === userId && m.message_id <= messageId && m.status !== 'read'
-            ? { ...m, status: 'read' as const }
-            : m
-        ))
+        setMessages(prev => {
+          const idx = prev.findIndex(m => m.message_id === messageId)
+          if (idx < 0) return prev
+          return prev.map((m, i) =>
+            m.sender_id === userId && i <= idx && m.status !== 'read'
+              ? { ...m, status: 'read' as const }
+              : m
+          )
+        })
       }),
 
       chatWs.on('chat.edit', (data: any) => {

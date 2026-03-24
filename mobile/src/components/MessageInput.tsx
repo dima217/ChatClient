@@ -114,7 +114,7 @@ const s = StyleSheet.create({
   cancelReply: { padding: 4 },
   cancelReplyText: { color: colors.text.gray500, fontSize: 12 },
   emojiPanel: {
-    maxHeight: 160,
+    maxHeight: 180,
     padding: 8,
     backgroundColor: colors.bg.gray800,
     borderTopWidth: 1,
